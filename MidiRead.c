@@ -16,7 +16,6 @@ typedef struct node
 } midi_t;
 
 
-
 int readByte()
 {
     int result = 0;
@@ -25,6 +24,7 @@ int readByte()
 
     return result;
 }
+
 
 void print_list(midi_t * head) {
     midi_t * current = head;
@@ -133,9 +133,16 @@ int main()
         return(-1);
     }*/
     
-
     bool firstLink = true;
     fread(buffer,sizeof(buffer),1,ptr); // read 10 bytes to our buffer
+
+    int dataStart       = 0;
+    int dataEnd         = 0;
+    int statusByte      = 0;
+    int dataByte        = 0;
+    int velocityByte    = 0;
+    int ticksFirst      = 0;
+    int ticksSecond     = 0;
 
     for (int i = 0; i<101; i++)
     {
@@ -147,16 +154,69 @@ int main()
 
         if (buffer[i] == 0x80 || buffer[i] == 0x90)
         {
+            dataStart = i;
+
+            statusByte      = buffer[i];
+            dataByte        = buffer[i+1];
+            velocityByte    = buffer[i+2];
+            ticksFirst      = buffer[i-1];
+            
+            int checkValue = (int)(unsigned char)buffer[i+3];
+                    
+            switch(checkValue)
+            {
+                case 0x00:
+                    ticksSecond = 0;
+                    break;
+                case 0x40:
+                    // /2 delta ticks
+                    ticksSecond = (int)(unsigned char)buffer[i+3];
+                    dataEnd += 1;
+                    break;
+                case 0x80:
+                    ticksSecond = 0;
+                    break;
+                case 0x81:
+                    // *delta ticks
+                    ticksSecond = (int)(unsigned char)buffer[i+3];
+                    dataEnd += 1;
+                    break;
+                case 0x82:
+                    // *2*delta ticks
+                    ticksSecond = (int)(unsigned char)buffer[i+3];
+                    dataEnd += 1;
+                    break;
+                case 0x83:
+                    // *3*delta ticks
+                    ticksSecond = (int)(unsigned char)buffer[i+3];
+                    dataEnd += 1;
+                    break;
+                case 0x90:
+                    ticksSecond = 0;
+                    break;
+                case 0xFF:
+                    ticksSecond = 0;
+                    break;
+                default:
+                    ticksSecond = (int)(unsigned char)buffer[i+2];
+                    break;
+            }
+
+            pushNew(firstLink,head,dataStart,dataEnd,statusByte,dataByte,velocityByte,ticksFirst,ticksSecond);
+
             if (firstLink == true)
             {   
                 // writing first time in list
-                pushNew(firstLink,head,i,i+4,buffer[i],buffer[i+1],buffer[i+2],buffer[i-1],buffer[i+3]);
                 firstLink = false;
             }
-            else
-            {
-                pushNew(firstLink,head,i,i+4,buffer[i],buffer[i+1],buffer[i+2],buffer[i-1],buffer[i+3]);
-            }
+
+            dataStart       = 0;
+            dataEnd         = 0;
+            statusByte      = 0;
+            dataByte        = 0;
+            velocityByte    = 0;
+            ticksFirst      = 0;
+            ticksSecond     = 0;
         }
     }
 
