@@ -2,7 +2,8 @@
 #include <stdlib.h> //malloc function
 #include <stdbool.h>
 
-
+// **********************
+// typdefinitionen
 typedef struct node
 {
     int dataStart;
@@ -16,6 +17,17 @@ typedef struct node
 } midi_t;
 
 
+typedef struct 
+{
+    int noteBefore;
+    int noteAfter;
+    char instrument[11];
+    char pluginBefore[11];
+    char pluginAfter[11];
+} midiConv_t;
+
+// ***********************
+// funktionen
 int readByte()
 {
     int result = 0;
@@ -24,7 +36,6 @@ int readByte()
 
     return result;
 }
-
 
 void print_list(midi_t * head) {
     midi_t * current = head;
@@ -97,7 +108,6 @@ void pushNew(bool firstLink, midi_t * head, int dataStart, int dataEnd, int stat
     }
 }
 
-
 void firstPush(midi_t * head, int dataStart, int dataEnd, int statusByte, int dataByte, int velocityByte, int ticksFirst, int ticksSecond) {
     midi_t * current = head;
 
@@ -114,27 +124,65 @@ void firstPush(midi_t * head, int dataStart, int dataEnd, int statusByte, int da
     current->next = NULL;
 }
 
+// ***********************
+// main
 int main() 
 {
+    // linked list how to
     // https://www.youtube.com/watch?v=DneLxrPmmsw
     // https://www.c-howto.de/tutorial/arrays-felder/speicherverwaltung/
     // https://www.codevscolor.com/c-program-create-iterate-linked-list
 
+
+    midiConv_t midiConvArray[20] =
+    {
+        {36,24,"KICK","SSD5","GGD4"},
+        {38,26,"SNARE","SSD5","GGD4"},
+        {46,26,"TOM_LO","SSD5","GGD4"},
+        {57,56,"TOM_HI","SSD5","GGD4"},
+        {55,54,"HIHAT","SSD5","GGD4"},
+        {42,23,"CRASH_LE","SSD5","GGD4"},
+        {48,41,"CRASH_RI","SSD5","GGD4"},
+        {50,28,"RIDE","SSD5","GGD4"},
+        {43,41,"RIDE","SSD5","GGD4"},
+        {24,24,"KICK","SSD5","GGD4"},
+        {26,26,"SNARE","SSD5","GGD4"},
+        {60,43,"HH_CL_2","SSD5","GGD4"},
+        {66,42,"HH_CL_1","SSD5","GGD4"},
+        {51,61,"RIDE","SSD5","GGD4"},
+        {54,42,"HH_CL_1","SSD5","GGD4"},
+        {56,61,"RIDE","SSD5","GGD4"},
+        {40,47,"RIDE","SSD5","GGD4"},
+        {65,56,"RIDE","SSD5","GGD4"},
+        {59,54,"RIDE","SSD5","GGD4"},
+        {47,47,"RIDE","SSD5","GGD4"}
+    };
+
+    // zeiger auf ersten speicherwert
     midi_t *head = NULL, *current;
     head = (midi_t *)malloc(sizeof(midi_t));
    
-    unsigned char buffer[101];
+
 
     FILE *ptr;
     ptr = fopen("/Users/alexandermathieu/Coding/TestArea/Midi/simple.mid","rb");  // r for read, b for binary
-    /*
     if (ptr == NULL){
         perror("Error opening file");
         return(-1);
-    }*/
+    }
+
+    // get fileSize
+    fseek(ptr, 0, SEEK_END);
+    int bufferSize = ftell(ptr);
+    fseek(ptr, 0, SEEK_SET);
+
+    printf("size: %d\n", bufferSize);
+
+    unsigned char buffer[bufferSize];
     
+    // erster Link muss current beschreiben, ab dem zweiten current -> next
     bool firstLink = true;
-    fread(buffer,sizeof(buffer),1,ptr); // read 10 bytes to our buffer
+    fread(buffer,sizeof(buffer),1,ptr); 
 
     int dataStart       = 0;
     int dataEnd         = 0;
@@ -144,15 +192,15 @@ int main()
     int ticksFirst      = 0;
     int ticksSecond     = 0;
 
-    for (int i = 0; i<101; i++)
+    for (int i = 0; i<bufferSize; i++) // buffersize variable einsetzen
     {
-        if (buffer[i] == 0xFF && buffer[i+1] == 0x2F)
+        if (buffer[i] == 0xFF && buffer[i+1] == 0x2F) // midibefehl "Ende Midi-Datei"
         {
             printf("End of Track\n");
             break;
         }
 
-        if (buffer[i] == 0x80 || buffer[i] == 0x90)
+        if (buffer[i] == 0x80 || buffer[i] == 0x90) // note on || note off
         {
             dataStart = i;
 
@@ -161,7 +209,7 @@ int main()
             velocityByte    = buffer[i+2];
             ticksFirst      = buffer[i-1];
             
-            int checkValue = (int)(unsigned char)buffer[i+3];
+            int checkValue = (int)(unsigned char)buffer[i+3]; // gibt es zweiten Wert für Ticks? 
                     
             switch(checkValue)
             {
@@ -209,7 +257,6 @@ int main()
                 // writing first time in list
                 firstLink = false;
             }
-
             dataStart       = 0;
             dataEnd         = 0;
             statusByte      = 0;
@@ -226,7 +273,7 @@ int main()
     return 0;
 
     // print that shit
-    for (int i = 0; i<101; i++)
+    for (int i = 0; i<bufferSize; i++)
     {
         printf("%02x\n", buffer[i]); // prints a series of bytes
     }
