@@ -2,6 +2,10 @@
 #include <stdlib.h> //malloc function
 #include <stdbool.h>
 
+#define SAVE_MIDI_COMMANDS true
+#define PRINT_MIDI_COMMANDS true
+#define CONVERT_MIDI true
+
 // **********************
 // typdefinitionen
 typedef struct node
@@ -133,6 +137,10 @@ int main()
     // https://www.c-howto.de/tutorial/arrays-felder/speicherverwaltung/
     // https://www.codevscolor.com/c-program-create-iterate-linked-list
 
+    bool saveMidiCommands   = SAVE_MIDI_COMMANDS;
+    bool convertData        = CONVERT_MIDI;
+    bool printMidiCommands  = PRINT_MIDI_COMMANDS;
+    bool saveMidiData       = SAVE_MIDI_COMMANDS;
 
     midiConv_t midiConvArray[20] =
     {
@@ -162,8 +170,6 @@ int main()
     midi_t *head = NULL, *current;
     head = (midi_t *)malloc(sizeof(midi_t));
    
-
-
     FILE *ptr;
     ptr = fopen("/Users/alexandermathieu/Coding/TestArea/Midi/simple.mid","rb");  // r for read, b for binary
     if (ptr == NULL){
@@ -176,7 +182,7 @@ int main()
     int bufferSize = ftell(ptr);
     fseek(ptr, 0, SEEK_SET);
 
-    printf("size: %d\n", bufferSize);
+    printf("filesize: %d\n", bufferSize);
 
     unsigned char buffer[bufferSize];
     
@@ -196,13 +202,26 @@ int main()
     {
         if (buffer[i] == 0xFF && buffer[i+1] == 0x2F) // midibefehl "Ende Midi-Datei"
         {
-            printf("End of Track\n");
+            printf("End of Track\n\n");
             break;
         }
 
         if (buffer[i] == 0x80 || buffer[i] == 0x90) // note on || note off
         {
-            dataStart = i;
+            if (convertData == true)
+            {
+                for (int u = 0; u < (int)(sizeof(midiConvArray)/sizeof(midiConvArray[0])); u++)
+                {
+                    if (buffer[i+1] == midiConvArray[u].noteBefore)
+                    {
+                        buffer[i+1] = midiConvArray[u].noteAfter;
+                        printf("found note: %s \n",midiConvArray[u].instrument);
+                        break;
+                    }
+                }
+            }
+            dataStart = i-1;
+            dataEnd = dataStart+3;
 
             statusByte      = buffer[i];
             dataByte        = buffer[i+1];
@@ -250,13 +269,17 @@ int main()
                     break;
             }
 
-            pushNew(firstLink,head,dataStart,dataEnd,statusByte,dataByte,velocityByte,ticksFirst,ticksSecond);
-
+            if (saveMidiCommands == true)
+            {
+                pushNew(firstLink,head,dataStart,dataEnd,statusByte,dataByte,velocityByte,ticksFirst,ticksSecond);
+            }
+                
+            // writing first time in list
             if (firstLink == true)
             {   
-                // writing first time in list
                 firstLink = false;
             }
+
             dataStart       = 0;
             dataEnd         = 0;
             statusByte      = 0;
@@ -267,22 +290,28 @@ int main()
         }
     }
 
-    print_list(head);
-
-
-    return 0;
-
-    // print that shit
-    for (int i = 0; i<bufferSize; i++)
+    if (printMidiCommands == true)
     {
-        printf("%02x\n", buffer[i]); // prints a series of bytes
+        print_list(head);
     }
 
-    FILE *write_ptr;
-    write_ptr = fopen("/Users/alexandermathieu/Coding/TestArea/Midi/test2.bin","wb");  // w for write, b for binary
-    fwrite(buffer,sizeof(buffer),1,write_ptr); // write 10 bytes from our buffer
+       
 
+    if (saveMidiData == true)
+    {
+        // print that shit
+        /*
+        for (int i = 0; i<bufferSize; i++)
+        {
+            printf("%02x\n", buffer[i]); // prints a series of bytes
+        }*/
 
+        FILE *write_ptr;
+        write_ptr = fopen("/Users/alexandermathieu/Coding/TestArea/Midi/test3.mid","wb");  // w for write, b for binary
+        fwrite(buffer,sizeof(buffer),1,write_ptr); 
+        fclose(write_ptr);
+        
+    }
     return 0;
 }
 
